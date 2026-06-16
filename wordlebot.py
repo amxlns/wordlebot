@@ -1,83 +1,43 @@
-import discord
-import asyncio
+import requests
 import random
+import json
+from datetime import datetime
 import os
-from datetime import datetime, timedelta
 
-TOKEN = os.getenv("DISCORD_TOKEN")
-CHANNEL_ID = 1516475623290441748
+WEBHOOK_URL = os.environ["DISCORD_WEBHOOK"]
 
-client = discord.Client(intents=discord.Intents.default())
+STATE_FILE = "state.json"
 
+today = datetime.utcnow().strftime("%Y-%m-%d")
+current_hour = datetime.utcnow().hour
 
-def get_random_times():
-    times = set()
+# Load state
+if os.path.exists(STATE_FILE):
+    with open(STATE_FILE, "r") as f:
+        state = json.load(f)
+else:
+    state = {}
 
-    while len(times) < 4:
-        times.add((
-            random.randint(8, 23),  # between 8 AM and 11 PM
-            random.randint(0, 59)
-        ))
+# New day = generate 4 random hours
+if state.get("date") != today:
+    hours = sorted(random.sample(range(0, 24), 4))
+    state = {
+        "date": today,
+        "hours": hours,
+        "sent": []
+    }
 
-    return sorted(times)
+# Send if current hour matches
+if current_hour in state["hours"] and current_hour not in state["sent"]:
 
+    requests.post(
+        WEBHOOK_URL,
+        json={
+            "content": "@everyone should we do the wordle?? prolly"
+        }
+    )
 
-async def scheduler():
-    await client.wait_until_ready()
+    state["sent"].append(current_hour)
 
-    while not client.is_closed():
-
-        channel = client.get_channel(CHANNEL_ID)
-
-        today_times = get_random_times()
-
-        print(f"Today's Wordle propaganda schedule: {today_times}")
-
-        for hour, minute in today_times:
-
-            now = datetime.now()
-
-            target = now.replace(
-                hour=hour,
-                minute=minute,
-                second=0,
-                microsecond=0
-            )
-
-            if target <= now:
-                continue
-
-            wait_time = (target - now).total_seconds()
-
-            await asyncio.sleep(wait_time)
-
-            await channel.send(
-                "@everyone should we do the wordle?? prolly",
-                allowed_mentions=discord.AllowedMentions(everyone=True)
-            )
-
-        tomorrow = (
-            datetime.now().replace(
-                hour=0,
-                minute=0,
-                second=0,
-                microsecond=0
-            )
-            + timedelta(days=1)
-        )
-
-        await asyncio.sleep(
-            (tomorrow - datetime.now()).total_seconds()
-        )
-
-
-@client.event
-async def on_ready():
-    print(f"Logged in as {client.user}")
-
-    if not hasattr(client, "scheduler_started"):
-        client.scheduler_started = True
-        asyncio.create_task(scheduler())
-
-
-client.run(TOKEN)
+with open(STATE_FILE, "w") as f:
+    json.dump(state, f)
