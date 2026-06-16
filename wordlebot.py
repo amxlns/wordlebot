@@ -13,7 +13,7 @@ random.seed(seed)
 
 random_hours = random.sample(range(24), 4)
 
-if True:
+if now.hour in random_hours:
     requests.post(
         WEBHOOK_URL,
         json={
