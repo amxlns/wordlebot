@@ -19,6 +19,6 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python random_wordle.py
+      - run: python wordlebot.py
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
